@@ -1,20 +1,121 @@
+import 'react-confirm-alert/src/react-confirm-alert.css'; // Import css
 import "./appointments.css";
 import Navbar from "../../components/navbar/navbar.jsx";;
 import { Link, useNavigate } from "react-router-dom";
-import { doctors, appointments } from "../../constants/data.js";
 import Appointment from "../../components/appointment/appointment.jsx";
+import { useEffect, useState } from "react";
+import api from "../../constants/api.js";
+import { confirmAlert } from "react-confirm-alert";
 
 function Appointments() {
 
     const navigate = useNavigate();
+    const [appointments, setAppointments] = useState([]);
+    const [doctors, setDoctors] = useState([]);
+
+    const [idDoctor, setIdDoctor] = useState("");
+    const [dtStart, setDtStart] = useState("");
+    const [dtEnd, setDtEnd] = useState("");
 
     function ClickEdit(id_appointment) {
         navigate("/appointments/edit/" + id_appointment);
     }
 
     function ClickDelete(id_appointment) {
-        console.log("Excluir " + id_appointment);
+        confirmAlert({
+            title: "Exclusão",
+            message: "Confirma exclusão desse agendamento?",
+            buttons: [
+                {
+                    label: "Sim",
+                    onClick: () => DeleteAppointment(id_appointment)
+                },
+                {
+                    label: "Não",
+                    onClick: () => { }
+                }
+            ]
+        });
     }
+
+    async function DeleteAppointment(id) {
+
+        try {
+            const response = await api.delete("/appointments/" + id);
+
+            if (response.data) {
+                LoadAppointments();
+            }
+
+        } catch (error) {
+            if (error.response?.data.error) {
+                if (error.response.status == 401)
+                    return navigate("/");
+
+                alert(error.response?.data.error);
+            }
+            else
+                alert("Erro ao excluir dados");
+        }
+    }
+
+    async function LoadDoctors() {
+
+        try {
+            const response = await api.get("/doctors");
+
+            if (response.data) {
+                setDoctors(response.data);
+            }
+
+        } catch (error) {
+            if (error.response?.data.error) {
+                if (error.response.status == 401)
+                    return navigate("/");
+
+                alert(error.response?.data.error);
+            }
+            else
+                alert("Erro ao listar médicos.");
+        }
+    }
+
+    async function LoadAppointments() {
+
+        try {
+            const response = await api.get("/admin/appointments", {
+                params: {
+                    id_doctor: idDoctor,
+                    dt_start: dtStart,
+                    dt_end: dtEnd
+                }
+            });
+
+            if (response.data) {
+                setAppointments(response.data);
+            }
+
+        } catch (error) {
+            if (error.response?.data.error) {
+
+                if (error.response.status == 401)
+                    return navigate("/");
+
+                alert(error.response?.data.error);
+            }
+            else
+                alert("Erro ao efetutar login. Tente novamente mais tarde.");
+        }
+    }
+
+    function ChangeDoctor(e) {
+        setIdDoctor(e.target.value);
+    }
+
+    useEffect(() => {
+        LoadDoctors();
+        LoadAppointments();
+    }, []);
 
     return <div className="container-fluid mt-page">
         <Navbar />
@@ -29,12 +130,14 @@ function Appointments() {
             </div>
 
             <div className="d-flex justify-content-end">
-                <input id="startDate" className="form-control" type="date" />
+                <input id="startDate" className="form-control" type="date"
+                    onChange={(e) => setDtStart(e.target.value)} />
                 <span className="m-2">Até</span>
-                <input id="endtDate" className="form-control" type="date" />
+                <input id="endtDate" className="form-control" type="date"
+                    onChange={(e) => setDtEnd(e.target.value)} />
 
                 <div className="form-control ms-3 me-3">
-                    <select name="doctor" id="doctor">
+                    <select name="doctor" id="doctor" value={idDoctor} onChange={ChangeDoctor}>
                         <option value="">Todos os médicos</option>
 
                         {
@@ -48,7 +151,7 @@ function Appointments() {
                     </select>
                 </div>
 
-                <button className="btn btn-primary">Filtrar</button>
+                <button onClick={LoadAppointments} className="btn btn-primary" type="button">Filtrar</button>
             </div>
 
         </div>
